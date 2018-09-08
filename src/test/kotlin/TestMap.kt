@@ -11,7 +11,6 @@ class TestMap {
 
     lateinit var map: HexMap
 
-
     @Test
     fun testSize(){
         val width = 100
@@ -40,6 +39,25 @@ class TestMap {
                 map.bottomRightTile.getAdjacent(113))
         assertNotEquals(map.bottomRightTile.getAdjacent(Tile.ADJACENT_TOP_LEFT),
                 map.bottomRightTile.getAdjacent(114))
+    }
+
+    @Test
+    fun test2(){
+        val width = 10
+        val height = 10
+        map = HexMap(width, height)
+
+        var tile = map.bottomLeftTile
+        while(true){
+            if(tile.top == null){
+                println(map.topLeftTile)
+                println(tile)
+                //assert(tile == map.topLeftTile)
+                break
+            }
+            tile = tile.top!!
+        }
+        println()
     }
 
     @Test

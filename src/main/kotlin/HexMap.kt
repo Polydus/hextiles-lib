@@ -7,7 +7,7 @@ import kotlin.collections.HashSet
 
 class HexMap(val width: Int, val height: Int): Serializable{
 
-    private var tiles = arrayListOf<Tile>()
+    private val tiles = ArrayList<Tile>()
     private val tileMap = HashMap<String, Tile>()
 
     private val cornerTiles: Array<Tile>
@@ -65,7 +65,7 @@ class HexMap(val width: Int, val height: Int): Serializable{
             tile.init(tile.y1 + offset, tile.y2, tile.x)
 
 
-            tileMap[tile.toString()] = tile
+            tileMap[tile.posString()] = tile
         }
 
     }
@@ -130,7 +130,7 @@ class HexMap(val width: Int, val height: Int): Serializable{
         val result = ArrayList<Tile>()
 
         var tile: Tile? = target
-        while(tile != null && tile.parent != null){
+        while(tile?.parent != null){
             result.add(tile)
             tile = tile.parent
         }
@@ -148,9 +148,13 @@ class HexMap(val width: Int, val height: Int): Serializable{
 
     fun getTile(y1: Int, y2: Int, x: Int): Tile?{
         if(y1 < 0 || y2 < 0 || x < 0) return null //can't have negative indices
+        return getTile(y1 + y2, x)
+    }
 
+    fun getTile(y: Int, x: Int): Tile?{
+        if(y < 0 || x < 0) return null //can't have negative indices
         return try {
-            tileMap["$y1.$y2.$x"]!!
+            tileMap["${y}y|${x}x"]!!
         } catch (e: NullPointerException){
             null
         }
@@ -158,6 +162,22 @@ class HexMap(val width: Int, val height: Int): Serializable{
 
     fun getTileWithDelta(origin: Tile, y1: Int, y2: Int, x: Int): Tile?{
         return getTile(origin.y1 + y1, origin.y2 + y2, origin.x + x)
+    }
+
+    /**
+     *
+     * Returns tiles that are within a certain range of the origin.
+     * @return List<Tile> with the origin and other tiles within the delta range (inclusive)
+     *
+     * */
+    fun getTilesWithinDelta(origin: Tile, delta: Int): List<Tile>{
+        if(delta < 0) return emptyList()
+        if(delta == 0) return listOf(origin)
+        val result = ArrayList<Tile>()
+        for(t in tiles){
+            if(t.isAdjacent(origin) || t.getDeltaTo(origin) <= delta) result.add(t)
+        }
+        return result
     }
 
     fun tileAmount(): Int{

@@ -10,6 +10,8 @@ class Tile(val id: Int, val hexMap: HexMap): Serializable, Comparable<Tile> {
         private set
     var x = 0
         private set
+    val y: Int
+        get() = y1 + y2
 
     //flip when this tile has impassable terrain. Used in pathfinding.
     var impassable = false
@@ -174,8 +176,12 @@ class Tile(val id: Int, val hexMap: HexMap): Serializable, Comparable<Tile> {
         return true
     }
 
+    fun posString(): String{
+        return "${y}y|${x}x"
+    }
+
     override fun toString(): String {
-        return "$y1.$y2.$x"
+        return "${posString()}|${if (impassable) 1 else 0}i"
     }
 
     override fun compareTo(other: Tile): Int {
