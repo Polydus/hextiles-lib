@@ -5,7 +5,7 @@ import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
-class HexMap(val width: Int, val height: Int): Serializable{
+class HexMap(val width: Int, val height: Int, shape: MapShape): Serializable{
 
     private val tiles = ArrayList<Tile>()
     private val tileMap = HashMap<String, Tile>()
@@ -20,13 +20,34 @@ class HexMap(val width: Int, val height: Int): Serializable{
         private set
     lateinit var topRightTile: Tile
         private set
+    lateinit var midTile: Tile
+        private set
+
+    enum class MapShape(type: Int){
+        Rectangle(0),
+        Diamond(1)
+    }
+
+    /***
+     * If no shape is passed, the default shape is a Rectangle
+     */
+
+    constructor(width: Int, height: Int) : this(width, height, MapShape.Rectangle)
+
+    /***
+     * empty constructor for serialization purposes
+     */
+
+    constructor(): this(4, 4)
 
     init {
-        if(width < 1 || height < 1) throw Exception("can't have < 1 width or height!")
+        if(width < 4 || height < 4) throw Exception("can't have < 4 width or height!")
 
         var initX = 1
         var initY = 0
 
+        var lowestY1 = 0
+        var lowestY2 = 0
         var lowestX = 0
 
         for(columns in 0 until width){
@@ -41,7 +62,13 @@ class HexMap(val width: Int, val height: Int): Serializable{
 
                 tile.init(initX + rows, initY + rows, columns)
 
-                if(tile.y1 < lowestX) lowestX = tile.y1
+                if(columns == width / 2 && rows == height / 2){
+                    midTile = tile
+                }
+
+                if(tile.y1 < lowestY1) lowestY1 = tile.y1
+                if(tile.y2 < lowestY2) lowestY2 = tile.y2
+                if(tile.x < lowestX) lowestX = tile.x
 
                 if(columns == 0){
                     if(rows == 0) bottomLeftTile = tile
@@ -53,21 +80,77 @@ class HexMap(val width: Int, val height: Int): Serializable{
                 }
             }
         }
-        cornerTiles = arrayOf(
-                bottomLeftTile, bottomRightTile,
-                topRightTile, topLeftTile)
 
-        val offset = -lowestX
+        when(shape){
+            HexMap.MapShape.Rectangle -> { }
+            HexMap.MapShape.Diamond -> {
+                val removedTiles = ArrayList<Tile>()
+                val limit = ((width + height) / 2) / 3
+                for(t in tiles){
+                    if(midTile.getDeltaTo(t) > limit){
+                        removedTiles.add(t)
+                    }
+                }
+                tiles.removeAll(removedTiles)
+
+                //reset all the tiles. Not optimal, I know
+                val newTiles = ArrayList<Tile>()
+                lowestY1 = 0
+                lowestY2 = 0
+                lowestX = 0
+
+                for(t in tiles){
+                    val tile = Tile(newTiles.size, this)
+                    newTiles.add(tile)
+                    tile.init(t.y1, t.y2, t.x)
+                    if(t == midTile) midTile = tile
+                    if(tile.y1 < lowestY1) lowestY1 = tile.y1
+                    if(tile.y2 < lowestY2) lowestY2 = tile.y2
+                    if(tile.x < lowestX) lowestX = tile.x
+                }
+                tiles.clear()
+                tiles.addAll(newTiles)
+            }
+        }
 
         tileMap.clear()
 
         for(tile in tiles){
-            tile.init(tile.y1 + offset, tile.y2, tile.x)
-
-
+            tile.init(tile.y1 + -lowestY1, tile.y2 + -lowestY2, tile.x + -lowestX)
             tileMap[tile.posString()] = tile
         }
 
+        var nextTile: Tile? = midTile.bottomLeft
+        while(nextTile != null){
+            bottomLeftTile = nextTile
+            nextTile = nextTile.bottomLeft
+        }
+
+        nextTile = midTile.bottomRight
+        while(nextTile != null){
+            bottomRightTile = nextTile
+            nextTile = nextTile.bottomRight
+        }
+
+        nextTile = midTile.topLeft
+        while(nextTile != null){
+            topLeftTile = nextTile
+            nextTile = nextTile.topLeft
+        }
+
+        nextTile = midTile.topRight
+        while(nextTile != null){
+            topRightTile = nextTile
+            nextTile = nextTile.topRight
+        }
+
+        while(topLeftTile.top != null) topLeftTile = topLeftTile.top!!
+        while(topRightTile.top != null) topRightTile = topRightTile.top!!
+        while(bottomLeftTile.bottom != null) bottomLeftTile = bottomLeftTile.bottom!!
+        while(bottomRightTile.bottom != null) bottomRightTile = bottomRightTile.bottom!!
+
+        cornerTiles = arrayOf(bottomLeftTile, bottomRightTile,
+                topRightTile, topLeftTile)
     }
 
     /**
@@ -80,14 +163,19 @@ class HexMap(val width: Int, val height: Int): Serializable{
      * @param target
      * destination tile, included in result
      *
+     * @param excludeType
+     * excludes tiles of a certain type, or null if not excluding
+     * any type.
+     *
      * @return the List<Tile>, or empty List if no valid path is found.
      * */
-    fun getPath(origin: Tile, target: Tile): List<Tile>{
-        if(origin == target) return listOf()
-        if(origin.impassable || target.impassable) return listOf()
+
+    fun getPath(origin: Tile, target: Tile, excludeType: Int?): List<Tile>{
+        if(origin == target) return emptyList()
+        if(origin.terrainType == excludeType || target.terrainType == excludeType) return emptyList()
         //check if origin or target can be reached at all
-        if(origin.getPassableAdjacents().isEmpty()
-                || target.getPassableAdjacents().isEmpty()) return listOf()
+        if(origin.getPassableAdjacents(excludeType).isEmpty()
+                || target.getPassableAdjacents(excludeType).isEmpty()) return emptyList()
 
         for(t in tiles) t.resetPathVars()
 
@@ -110,7 +198,7 @@ class HexMap(val width: Int, val height: Int): Serializable{
             openList.remove(tile)
             closedList.add(tile)
 
-            val adjacents = tile.getPassableAdjacents()
+            val adjacents = tile.getPassableAdjacents(excludeType)
 
             for(a in adjacents){
                 val newDistToOrigin = tile.distToOrigin + 1
@@ -138,11 +226,59 @@ class HexMap(val width: Int, val height: Int): Serializable{
         return result.reversed()
     }
 
+    fun getPath(originID: Int, targetID: Int, excludeType: Int?): List<Tile>{
+        val origin = getTile(originID) ?: return emptyList()
+        val target = getTile(targetID) ?: return emptyList()
+        return getPath(origin, target, excludeType)
+    }
+
+    /**
+     * Creates a List<Tile> that represents the closest path from
+     * the origin tile to a tile that is adjacent to the target.
+     *
+     * @param origin
+     * current tile, not included in result
+     *
+     * @param target
+     * destination tile, included in result
+     *
+     * @param excludeType
+     * excludes tiles of a certain type, or null if not excluding
+     * any type.
+     *
+     * @return the List<Tile>, or empty List if no valid path is found.
+     * */
+
+    fun getPathToAdjacentOf(origin: Tile, target: Tile, excludeType: Int?): List<Tile>{
+        if(origin == target) return emptyList()
+        if(origin.getPassableAdjacents(excludeType).isEmpty()
+                || target.getPassableAdjacents(excludeType).isEmpty()) return emptyList()
+        if(origin.terrainType == excludeType) return emptyList()
+
+        val adj = target.getPassableAdjacents(excludeType)
+        var result = listOf<Tile>()
+
+        for(a in adj){
+            val path = getPath(origin, a, excludeType)
+            if(path.isNotEmpty() && (path.size < result.size || result.isEmpty())){
+                result = path
+            }
+        }
+
+        return result
+    }
+
+    fun getPathToAdjacentOf(originID: Int, targetID: Int, excludeType: Int?): List<Tile>{
+        val origin = getTile(originID) ?: return emptyList()
+        val target = getTile(targetID) ?: return emptyList()
+        return getPathToAdjacentOf(origin, target, excludeType)
+    }
+
     fun getTile(id: Int): Tile?{
-        try {
-            return tiles[id]
+        return try {
+            tiles[id]
         } catch (e: IndexOutOfBoundsException){
-            return null
+            null
         }
     }
 
@@ -170,13 +306,28 @@ class HexMap(val width: Int, val height: Int): Serializable{
      * @return List<Tile> with the origin and other tiles within the delta range (inclusive)
      *
      * */
+
     fun getTilesWithinDelta(origin: Tile, delta: Int): List<Tile>{
         if(delta < 0) return emptyList()
         if(delta == 0) return listOf(origin)
         val result = ArrayList<Tile>()
-        for(t in tiles){
-            if(t.isAdjacent(origin) || t.getDeltaTo(origin) <= delta) result.add(t)
-        }
+        for(t in tiles) if(t.isAdjacent(origin) || t.getDeltaTo(origin) <= delta) result.add(t)
+        return result
+    }
+
+    /**
+     *
+     * Returns tiles that are have a specific delta to the origin.
+     * @return List<Tile> with the origin and other tiles with the delta.
+     *
+     * */
+
+    fun getTilesWithDelta(origin: Tile, delta: Int): List<Tile>{
+        if(delta < 0) return emptyList()
+        if(delta == 0) return listOf(origin)
+        if(delta == 1) return origin.getNonNullAdjacents()
+        val result = ArrayList<Tile>()
+        for(t in tiles) if(t.getDeltaTo(origin) == delta) result.add(t)
         return result
     }
 

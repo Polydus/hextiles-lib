@@ -14,7 +14,10 @@ class Tile(val id: Int, val hexMap: HexMap): Serializable, Comparable<Tile> {
         get() = y1 + y2
 
     //flip when this tile has impassable terrain. Used in pathfinding.
-    var impassable = false
+    //var impassable = false
+
+    //use when you use pathfinding and want to exlude certain terrain.
+    var terrainType = -1
 
     companion object {
         const val ADJACENT_TOP = 0
@@ -117,6 +120,12 @@ class Tile(val id: Int, val hexMap: HexMap): Serializable, Comparable<Tile> {
         return null
     }
 
+    /***
+     * empty constructor for serialization purposes
+     */
+
+    constructor(): this(0, HexMap())
+
     /**
      * Creates an array of all adjacent tiles in clockwise order, or empty
      * array if no valid tiles exist. There should never be an empty array
@@ -148,9 +157,15 @@ class Tile(val id: Int, val hexMap: HexMap): Serializable, Comparable<Tile> {
      * @return the array
      * */
     fun getPassableAdjacents(): List<Tile>{
+        return getPassableAdjacents(null)
+    }
+
+    fun getPassableAdjacents(excludeType: Int?): List<Tile>{
         return listOf(top, topRight, bottomRight, bottom, bottomLeft, topLeft)
                 .filterNot { it == null }
-                .filterNot { it!!.impassable }.requireNoNulls()
+                .filterNot { it?.terrainType == excludeType }
+                .requireNoNulls()
+                //.filterNot { it!!.impassable }.requireNoNulls()
     }
 
     internal fun init(y1: Int, y2: Int, x: Int){
@@ -181,7 +196,8 @@ class Tile(val id: Int, val hexMap: HexMap): Serializable, Comparable<Tile> {
     }
 
     override fun toString(): String {
-        return "${posString()}|${if (impassable) 1 else 0}i"
+        return posString()
+        //return "${posString()}|${if (impassable) 1 else 0}i"
     }
 
     override fun compareTo(other: Tile): Int {

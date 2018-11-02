@@ -18,7 +18,7 @@ class TestMap {
         map = HexMap(width, height)
 
         val size = serialize(map).size
-        println("${size / 1000}kb map obj size. ${size / map.tileAmount()}bytes/tile.")
+        println("${map.tileAmount()} tiles. ${size / 1000}kb map obj size. ${size / map.tileAmount()}bytes/tile.")
     }
 
     @Test
@@ -26,7 +26,6 @@ class TestMap {
         val width = 100
         val height = 100
         map = HexMap(width, height)
-
 
         assertNotNull((map.bottomRightTile.getAdjacent(Tile.ADJACENT_TOP_LEFT)))
 
@@ -39,6 +38,16 @@ class TestMap {
                 map.bottomRightTile.getAdjacent(113))
         assertNotEquals(map.bottomRightTile.getAdjacent(Tile.ADJACENT_TOP_LEFT),
                 map.bottomRightTile.getAdjacent(114))
+    }
+
+    @Test
+    fun testDiamondMap(){
+        val width = 100
+        val height = 100
+        map = HexMap(width, height, HexMap.MapShape.Diamond)
+
+        val size = serialize(map).size
+        println("${map.tileAmount()} tiles. ${size / 1000}kb map obj size. ${size / map.tileAmount()}bytes/tile.")
     }
 
     @Test
@@ -57,7 +66,6 @@ class TestMap {
             }
             tile = tile.top!!
         }
-        println()
     }
 
     @Test
@@ -89,19 +97,20 @@ class TestMap {
         val width = 10
         val height = 10
         map = HexMap(width, height)
+        val excludedType = 1
         val blockedTile = map.getTile(
                 map.bottomLeftTile.y1 + -3,
                 map.bottomLeftTile.y2 + 3,
                 map.bottomLeftTile.x + 6)
-        blockedTile!!.impassable = true
+        blockedTile!!.terrainType = excludedType
 
         var next: Tile? = blockedTile
         while(next != null){
-            next.impassable = true
+            next.terrainType = excludedType
             next = next.top
         }
 
-        val a = map.getPath(map.bottomLeftTile, map.bottomRightTile)
+        val a = map.getPath(map.bottomLeftTile, map.bottomRightTile, excludedType)
         assert(a.isEmpty())
     }
 
@@ -111,7 +120,7 @@ class TestMap {
         val height = 100
         map = HexMap(width, height)
         val time = System.nanoTime()
-        val path = map.getPath(map.bottomLeftTile, map.topRightTile)
+        val path = map.getPath(map.bottomLeftTile, map.topRightTile, null)
         val diff = TimeUnit.MILLISECONDS.convert(System.nanoTime() - time, TimeUnit.NANOSECONDS)
         println("Generating ${path.size} tile path in a ${width}x${height} map took ${diff}ms")
     }
