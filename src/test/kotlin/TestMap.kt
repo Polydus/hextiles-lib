@@ -122,9 +122,43 @@ class TestMap {
         val time = System.nanoTime()
         val path = map.getPath(map.bottomLeftTile, map.topRightTile, null)
         val diff = TimeUnit.MILLISECONDS.convert(System.nanoTime() - time, TimeUnit.NANOSECONDS)
+
         println("Generating ${path.size} tile path in a ${width}x${height} map took ${diff}ms")
     }
 
+    /*
+    @Test
+    fun testPaths(){
+        repeat(30){
+            val width = 10
+            val height = 10
+            map = HexMap(width, height)
+            val time = System.nanoTime()
+
+            var sum = 0
+            for(t in 0 until map.tileAmount()){
+                val adj = map.getTile(t)!!.getNonNullAdjacents()
+                for(a in adj.withIndex()){
+                    sum += (a.index * t)
+                    //print(a.value.id)
+                }
+            }
+            println("$sum")
+
+            val path = map.getPath(map.bottomLeftTile, map.topRightTile, null)
+            //val diff = TimeUnit.MILLISECONDS.convert(System.nanoTime() - time, TimeUnit.NANOSECONDS)
+
+            var temp2 = ""
+            var sumTemp2 = 0
+
+            for(t in 0 until path.size){
+                temp2 += "${path[t].id} "
+                sumTemp2 += (path[t].id * t)
+            }
+            println("checksum path $sumTemp2. ${path.size}. $temp2")
+            //println("Generating ${path.size} tile path in a ${width}x${height} map took ${diff}ms")
+        }
+    }*/
 
     @Test
     fun testSpeed(){

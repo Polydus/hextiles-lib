@@ -165,7 +165,6 @@ class Tile(val id: Int, val hexMap: HexMap): Serializable, Comparable<Tile> {
                 .filterNot { it == null }
                 .filterNot { it?.terrainType == excludeType }
                 .requireNoNulls()
-                //.filterNot { it!!.impassable }.requireNoNulls()
     }
 
     internal fun init(y1: Int, y2: Int, x: Int){

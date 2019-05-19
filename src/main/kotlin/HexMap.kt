@@ -167,10 +167,14 @@ class HexMap(val width: Int, val height: Int, shape: MapShape): Serializable{
      * excludes tiles of a certain type, or null if not excluding
      * any type.
      *
+     * @param sortByID
+     * if true, will always return the same path. If false, this will
+     * return the shortest path, but it might be different each time.
+     *
      * @return the List<Tile>, or empty List if no valid path is found.
      * */
 
-    fun getPath(origin: Tile, target: Tile, excludeType: Int?): List<Tile>{
+    fun getPath(origin: Tile, target: Tile, excludeType: Int?, sortByID: Boolean): List<Tile>{
         if(origin == target) return emptyList()
         if(origin.terrainType == excludeType || target.terrainType == excludeType) return emptyList()
         //check if origin or target can be reached at all
@@ -187,12 +191,13 @@ class HexMap(val width: Int, val height: Int, shape: MapShape): Serializable{
         origin.distToOrigin = 0
         origin.distToTarget = origin.getDeltaTo(target)
 
-        while(!openList.isEmpty()){
-            var tile = openList.elementAt(0)
-
-            for(t in openList){
-                if(t.pathCost < tile.pathCost) tile = t
+        while(openList.isNotEmpty()){
+            val tile = if(sortByID){
+                openList.sortedBy { it.pathCost }.sortedBy { it.id }.first()
+            } else {
+                openList.sortedBy { it.pathCost }.first()
             }
+
             if(tile == target) break
 
             openList.remove(tile)
@@ -226,10 +231,20 @@ class HexMap(val width: Int, val height: Int, shape: MapShape): Serializable{
         return result.reversed()
     }
 
+    fun getPath(origin: Tile, target: Tile, excludeType: Int?): List<Tile>{
+        return getPath(origin, target, excludeType, false)
+    }
+
     fun getPath(originID: Int, targetID: Int, excludeType: Int?): List<Tile>{
         val origin = getTile(originID) ?: return emptyList()
         val target = getTile(targetID) ?: return emptyList()
-        return getPath(origin, target, excludeType)
+        return getPath(origin, target, excludeType, false)
+    }
+
+    fun getPath(originID: Int, targetID: Int, excludeType: Int?, sortByID: Boolean): List<Tile>{
+        val origin = getTile(originID) ?: return emptyList()
+        val target = getTile(targetID) ?: return emptyList()
+        return getPath(origin, target, excludeType, sortByID)
     }
 
     /**
